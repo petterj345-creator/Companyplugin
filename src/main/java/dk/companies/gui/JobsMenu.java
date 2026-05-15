@@ -188,6 +188,9 @@ public class JobsMenu extends Menu {
             company.addContribution(viewer.getUniqueId(), totalReward);
             plugin.companies().data().saveContribution(company.getId(), viewer.getUniqueId(),
                     company.getContributions().getOrDefault(viewer.getUniqueId(), 0.0));
+            company.addItemsDelivered(viewer.getUniqueId(), totalEarned);
+            plugin.companies().data().saveItemsDelivered(company.getId(), viewer.getUniqueId(),
+                    company.getItemsDelivered().getOrDefault(viewer.getUniqueId(), 0L));
         } else {
             MessageUtil.send(viewer, "&cNothing in the delivery slots matched an active job.");
         }

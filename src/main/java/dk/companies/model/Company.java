@@ -19,6 +19,8 @@ public class Company {
     private final Map<UUID, Role> members = new ConcurrentHashMap<>();
     /** member uuid -> total deposited/contributed (lifetime) */
     private final Map<UUID, Double> contributions = new ConcurrentHashMap<>();
+    /** member uuid -> total items delivered to jobs (lifetime) */
+    private final Map<UUID, Long> itemsDelivered = new ConcurrentHashMap<>();
     /** active licenses installed into this company */
     private final List<License> licenses = new ArrayList<>();
     /** currently open job applications (by player uuid) */
@@ -46,6 +48,7 @@ public class Company {
     public void setLevel(int level) { this.level = Math.max(1, level); }
     public Map<UUID, Role> getMembers() { return members; }
     public Map<UUID, Double> getContributions() { return contributions; }
+    public Map<UUID, Long> getItemsDelivered() { return itemsDelivered; }
     public List<License> getLicenses() { return licenses; }
     public Set<UUID> getApplicants() { return applicants; }
     public boolean isHiring() { return hiring; }
@@ -61,6 +64,10 @@ public class Company {
 
     public void addContribution(UUID player, double amount) {
         contributions.merge(player, amount, Double::sum);
+    }
+
+    public void addItemsDelivered(UUID player, long amount) {
+        itemsDelivered.merge(player, amount, Long::sum);
     }
 
     public License getLicenseFor(Material material) {

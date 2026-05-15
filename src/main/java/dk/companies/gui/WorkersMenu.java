@@ -52,6 +52,7 @@ public class WorkersMenu extends Menu {
             OfflinePlayer op = Bukkit.getOfflinePlayer(id);
             Role role = company.getRole(id);
             double contrib = company.getContributions().getOrDefault(id, 0.0);
+            long items = company.getItemsDelivered().getOrDefault(id, 0L);
             ItemStack head = new ItemStack(Material.PLAYER_HEAD);
             if (head.getItemMeta() instanceof SkullMeta sm) {
                 sm.setOwningPlayer(op);
@@ -59,7 +60,8 @@ public class WorkersMenu extends Menu {
             }
             head = ItemBuilder.of(Material.PLAYER_HEAD).name("&f" + (op.getName() == null ? id.toString() : op.getName()))
                     .lore("&7Role: &b" + role.name(),
-                            "&7Contributed: &a" + FormatUtil.money(contrib),
+                            "&7Items delivered: &f" + items,
+                            "&7Earned for company: &a" + FormatUtil.money(contrib),
                             "",
                             viewer.hasPermission("companies.use") && canManage()
                                     ? "&8Left-click: pay salary"

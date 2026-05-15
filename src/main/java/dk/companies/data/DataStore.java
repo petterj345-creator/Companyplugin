@@ -78,6 +78,14 @@ public class DataStore {
                     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
                 )""");
             s.execute("""
+                CREATE TABLE IF NOT EXISTS items_delivered (
+                    company_id TEXT NOT NULL,
+                    player TEXT NOT NULL,
+                    amount INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (company_id, player),
+                    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+                )""");
+            s.execute("""
                 CREATE TABLE IF NOT EXISTS applicants (
                     company_id TEXT NOT NULL,
                     player TEXT NOT NULL,
@@ -168,6 +176,15 @@ public class DataStore {
                     if (c != null) c.getContributions().put(
                             UUID.fromString(rs.getString("player")),
                             rs.getDouble("amount"));
+                }
+            }
+            try (ResultSet rs = s.executeQuery("SELECT * FROM items_delivered")) {
+                while (rs.next()) {
+                    UUID cid = UUID.fromString(rs.getString("company_id"));
+                    Company c = companies.get(cid);
+                    if (c != null) c.getItemsDelivered().put(
+                            UUID.fromString(rs.getString("player")),
+                            rs.getLong("amount"));
                 }
             }
             try (ResultSet rs = s.executeQuery("SELECT * FROM applicants")) {
@@ -264,6 +281,16 @@ public class DataStore {
             ps.setDouble(3, amount);
             ps.executeUpdate();
         } catch (SQLException e) { plugin.getLogger().warning("saveContribution: " + e.getMessage()); }
+    }
+
+    public void saveItemsDelivered(UUID companyId, UUID player, long amount) {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT OR REPLACE INTO items_delivered(company_id,player,amount) VALUES(?,?,?)")) {
+            ps.setString(1, companyId.toString());
+            ps.setString(2, player.toString());
+            ps.setLong(3, amount);
+            ps.executeUpdate();
+        } catch (SQLException e) { plugin.getLogger().warning("saveItemsDelivered: " + e.getMessage()); }
     }
 
     public void saveApplicant(UUID companyId, UUID player) {
