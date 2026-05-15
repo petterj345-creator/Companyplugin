@@ -1,0 +1,21 @@
+name: Companies
+version: '${project.version}'
+main: dk.companies.Companies
+api-version: '1.21'
+authors: [yourname]
+description: Company management plugin with licenses, jobs, and worker hiring.
+depend: [Vault]
+
+commands:
+  company:
+    description: Open the company GUI / manage your company.
+    aliases: [co, comp]
+    usage: /company [help|create|jobs|admin]
+
+permissions:
+  companies.use:
+    description: Use the basic company commands and GUIs.
+    default: true
+  companies.admin:
+    description: Access the admin panel (create/delete license types).
+    default: op
