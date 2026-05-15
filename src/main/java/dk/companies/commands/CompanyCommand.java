@@ -84,6 +84,25 @@ public class CompanyCommand implements CommandExecutor, TabCompleter {
                 plugin.reloadConfig();
                 MessageUtil.send(p, "&aConfig reloaded. &7(Interval changes need a full server restart to fully apply.)");
             }
+            case "fix" -> {
+                if (!p.hasPermission("companies.admin")) {
+                    MessageUtil.send(p, "&cNo permission.");
+                    return true;
+                }
+                int repaired = 0;
+                for (Company c : plugin.companies().data().getCompanies()) {
+                    if (c.getRole(c.getOwner()) != dk.companies.model.Role.OWNER) {
+                        c.getMembers().put(c.getOwner(), dk.companies.model.Role.OWNER);
+                        // also remove the owner from any stale applicants set
+                        c.getApplicants().remove(c.getOwner());
+                        plugin.companies().data().saveMember(c.getId(), c.getOwner(),
+                                dk.companies.model.Role.OWNER);
+                        plugin.companies().data().deleteApplicant(c.getId(), c.getOwner());
+                        repaired++;
+                    }
+                }
+                MessageUtil.send(p, "&aRepaired &f" + repaired + " &acompany owner(s).");
+            }
             default -> sendHelp(p);
         }
         return true;
@@ -104,6 +123,7 @@ public class CompanyCommand implements CommandExecutor, TabCompleter {
         if (p.hasPermission("companies.admin")) {
             p.sendMessage(MessageUtil.color(" &e/company admin &7- license type admin panel"));
             p.sendMessage(MessageUtil.color(" &e/company reload &7- reload config.yml"));
+            p.sendMessage(MessageUtil.color(" &e/company fix &7- repair orphaned company owners"));
         }
     }
 
@@ -115,6 +135,7 @@ public class CompanyCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("companies.admin")) {
                 out.add("admin");
                 out.add("reload");
+                out.add("fix");
             }
             return out;
         }

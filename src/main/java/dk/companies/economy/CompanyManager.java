@@ -147,6 +147,7 @@ public class CompanyManager {
 
     // ───── membership ─────
     public void apply(Player player, Company c) {
+        if (c.isMember(player.getUniqueId())) return; // already in — silently ignore
         c.getApplicants().add(player.getUniqueId());
         data.saveApplicant(c.getId(), player.getUniqueId());
     }

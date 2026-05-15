@@ -192,6 +192,22 @@ public class DataStore {
                             Role.valueOf(rs.getString("role")));
                 }
             }
+            // Self-heal: every company owner must be a member with Role.OWNER.
+            for (Company c : companies.values()) {
+                Role current = c.getMembers().get(c.getOwner());
+                if (current != Role.OWNER) {
+                    c.getMembers().put(c.getOwner(), Role.OWNER);
+                    plugin.getLogger().warning("Repaired orphaned owner for company " + c.getName()
+                            + " — added owner back to members table.");
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "INSERT OR REPLACE INTO members(company_id,player,role) VALUES(?,?,?)")) {
+                        ps.setString(1, c.getId().toString());
+                        ps.setString(2, c.getOwner().toString());
+                        ps.setString(3, Role.OWNER.name());
+                        ps.executeUpdate();
+                    } catch (SQLException ignored) {}
+                }
+            }
             try (ResultSet rs = s.executeQuery("SELECT * FROM contributions")) {
                 while (rs.next()) {
                     UUID cid = UUID.fromString(rs.getString("company_id"));
