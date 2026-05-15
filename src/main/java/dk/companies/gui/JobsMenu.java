@@ -42,6 +42,9 @@ public class JobsMenu extends Menu {
     @Override public boolean cancelByDefault() { return false; } // we allow deposits into delivery slots
 
     @Override public void open() {
+        // Refresh any expired/complete jobs so players don't wait for the full rotation interval.
+        plugin.licenses().refreshDeadJobs(company);
+
         inv = Bukkit.createInventory(null, 54, MessageUtil.color("&8Jobs: " + company.getName()));
         decorate();
 
@@ -191,6 +194,12 @@ public class JobsMenu extends Menu {
             company.addItemsDelivered(viewer.getUniqueId(), totalEarned);
             plugin.companies().data().saveItemsDelivered(company.getId(), viewer.getUniqueId(),
                     company.getItemsDelivered().getOrDefault(viewer.getUniqueId(), 0L));
+            // Accrue payout queue (paid out on the next payout tick).
+            if (totalReward > 0) {
+                company.addUnpaidEarnings(viewer.getUniqueId(), totalReward);
+                plugin.companies().data().saveUnpaidEarnings(company.getId(), viewer.getUniqueId(),
+                        company.getUnpaidEarnings().getOrDefault(viewer.getUniqueId(), 0.0));
+            }
         } else {
             MessageUtil.send(viewer, "&cNothing in the delivery slots matched an active job.");
         }

@@ -63,6 +63,28 @@ public class LicenseManager {
         lic.setCurrentJob(job);
     }
 
+    /**
+     * Replaces any expired/complete jobs on a company's licenses with freshly rolled ones.
+     * Called when a player opens the Jobs GUI so they don't have to wait for the full
+     * rotation interval after finishing a job.
+     */
+    public void refreshDeadJobs(Company company) {
+        long now = System.currentTimeMillis();
+        boolean changed = false;
+        for (License l : company.getLicenses()) {
+            if (l.getExpiresAt() < now) continue;
+            Job j = l.getCurrentJob();
+            if (j == null || j.isExpired() || j.isComplete()) {
+                LicenseType type = data.getLicenseType(l.getTypeId());
+                if (type != null) {
+                    rollJob(company, l, type);
+                    changed = true;
+                }
+            }
+        }
+        if (changed) data.saveCompany(company);
+    }
+
     /** Called by scheduler. Rotates jobs and prunes expired licenses. */
     public void rotateAll() {
         long now = System.currentTimeMillis();
@@ -106,6 +128,7 @@ public class LicenseManager {
             r.completed = j.isComplete();
             if (r.completed) {
                 c.setBalance(c.getBalance() + j.getReward());
+                c.addEarningsThisWindow(j.getReward());
                 data.saveCompany(c);
                 LicenseType type = data.getLicenseType(l.getTypeId());
                 if (type != null) rollJob(c, l, type);

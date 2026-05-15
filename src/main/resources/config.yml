@@ -7,11 +7,12 @@ economy:
   creation-cost: 25000.0
   # Withdrawal tax (percentage of the withdrawn amount).
   withdraw-tax-percent: 10.0
-  # Daily tax tick (percentage of current balance).
-  # Set to 0 to disable daily tax entirely.
-  daily-tax-percent: 2.0
-  # How often (in minutes) the daily tax runs. Default = 24h.
-  daily-tax-interval-minutes: 1440
+  # Periodic earnings-tax tick. Tax is taken as a % of the company's earnings
+  # (completed job rewards) since the last tick — NOT the whole balance.
+  # Set to 0 to disable.
+  earnings-tax-percent: 15.0
+  # How often (in minutes) the earnings-tax tick runs. Default = 180 (3 hours).
+  earnings-tax-interval-minutes: 180
 
 company:
   # If balance drops below this value, the company is deleted.
@@ -42,6 +43,17 @@ jobs:
   # Random required-amount multiplier range.
   amount-min-multiplier: 0.8
   amount-max-multiplier: 1.2
+
+payout:
+  # How often (in minutes) the automatic payout to contributors runs.
+  # Default 20 = 1 Minecraft day. Set higher/lower as you like.
+  interval-minutes: 20
+  # Minimum payout percentage an owner can set.
+  min-percent: 10.0
+  # Maximum payout percentage an owner can set.
+  max-percent: 100.0
+  # Default payout percentage for a new company.
+  default-percent: 10.0
 
 messages:
   prefix: "&8[&6Companies&8] &r"

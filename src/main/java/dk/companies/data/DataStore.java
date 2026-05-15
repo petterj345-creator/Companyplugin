@@ -55,11 +55,19 @@ public class DataStore {
                     balance REAL NOT NULL,
                     created_at INTEGER NOT NULL,
                     hiring INTEGER NOT NULL DEFAULT 0,
-                    level INTEGER NOT NULL DEFAULT 1
+                    level INTEGER NOT NULL DEFAULT 1,
+                    payout_percent REAL NOT NULL DEFAULT 10.0,
+                    earnings_this_window REAL NOT NULL DEFAULT 0
                 )""");
-            // For old DBs lacking the column — ignore failures.
+            // Migrations for old DBs lacking columns — ignore failures.
             try (Statement s2 = conn.createStatement()) {
                 s2.execute("ALTER TABLE companies ADD COLUMN level INTEGER NOT NULL DEFAULT 1");
+            } catch (SQLException ignored) {}
+            try (Statement s2 = conn.createStatement()) {
+                s2.execute("ALTER TABLE companies ADD COLUMN payout_percent REAL NOT NULL DEFAULT 10.0");
+            } catch (SQLException ignored) {}
+            try (Statement s2 = conn.createStatement()) {
+                s2.execute("ALTER TABLE companies ADD COLUMN earnings_this_window REAL NOT NULL DEFAULT 0");
             } catch (SQLException ignored) {}
             s.execute("""
                 CREATE TABLE IF NOT EXISTS members (
@@ -82,6 +90,14 @@ public class DataStore {
                     company_id TEXT NOT NULL,
                     player TEXT NOT NULL,
                     amount INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (company_id, player),
+                    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+                )""");
+            s.execute("""
+                CREATE TABLE IF NOT EXISTS unpaid_earnings (
+                    company_id TEXT NOT NULL,
+                    player TEXT NOT NULL,
+                    amount REAL NOT NULL DEFAULT 0,
                     PRIMARY KEY (company_id, player),
                     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
                 )""");
@@ -157,6 +173,8 @@ public class DataStore {
                             rs.getLong("created_at"));
                     c.setHiring(rs.getInt("hiring") == 1);
                     try { c.setLevel(rs.getInt("level")); } catch (SQLException ignored) {}
+                    try { c.setPayoutPercent(rs.getDouble("payout_percent")); } catch (SQLException ignored) {}
+                    try { c.setEarningsThisWindow(rs.getDouble("earnings_this_window")); } catch (SQLException ignored) {}
                     companies.put(c.getId(), c);
                 }
             }
@@ -185,6 +203,15 @@ public class DataStore {
                     if (c != null) c.getItemsDelivered().put(
                             UUID.fromString(rs.getString("player")),
                             rs.getLong("amount"));
+                }
+            }
+            try (ResultSet rs = s.executeQuery("SELECT * FROM unpaid_earnings")) {
+                while (rs.next()) {
+                    UUID cid = UUID.fromString(rs.getString("company_id"));
+                    Company c = companies.get(cid);
+                    if (c != null) c.getUnpaidEarnings().put(
+                            UUID.fromString(rs.getString("player")),
+                            rs.getDouble("amount"));
                 }
             }
             try (ResultSet rs = s.executeQuery("SELECT * FROM applicants")) {
@@ -233,7 +260,7 @@ public class DataStore {
     // ───── mutations ─────
     public void saveCompany(Company c) {
         try (PreparedStatement ps = conn.prepareStatement(
-                "INSERT OR REPLACE INTO companies(id,name,owner,balance,created_at,hiring,level) VALUES(?,?,?,?,?,?,?)")) {
+                "INSERT OR REPLACE INTO companies(id,name,owner,balance,created_at,hiring,level,payout_percent,earnings_this_window) VALUES(?,?,?,?,?,?,?,?,?)")) {
             ps.setString(1, c.getId().toString());
             ps.setString(2, c.getName());
             ps.setString(3, c.getOwner().toString());
@@ -241,6 +268,8 @@ public class DataStore {
             ps.setLong(5, c.getCreatedAt());
             ps.setInt(6, c.isHiring() ? 1 : 0);
             ps.setInt(7, c.getLevel());
+            ps.setDouble(8, c.getPayoutPercent());
+            ps.setDouble(9, c.getEarningsThisWindow());
             ps.executeUpdate();
         } catch (SQLException e) { plugin.getLogger().warning("saveCompany: " + e.getMessage()); }
         companies.put(c.getId(), c);
@@ -291,6 +320,25 @@ public class DataStore {
             ps.setLong(3, amount);
             ps.executeUpdate();
         } catch (SQLException e) { plugin.getLogger().warning("saveItemsDelivered: " + e.getMessage()); }
+    }
+
+    public void saveUnpaidEarnings(UUID companyId, UUID player, double amount) {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT OR REPLACE INTO unpaid_earnings(company_id,player,amount) VALUES(?,?,?)")) {
+            ps.setString(1, companyId.toString());
+            ps.setString(2, player.toString());
+            ps.setDouble(3, amount);
+            ps.executeUpdate();
+        } catch (SQLException e) { plugin.getLogger().warning("saveUnpaidEarnings: " + e.getMessage()); }
+    }
+
+    public void deleteUnpaidEarnings(UUID companyId, UUID player) {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "DELETE FROM unpaid_earnings WHERE company_id = ? AND player = ?")) {
+            ps.setString(1, companyId.toString());
+            ps.setString(2, player.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) { plugin.getLogger().warning("deleteUnpaidEarnings: " + e.getMessage()); }
     }
 
     public void saveApplicant(UUID companyId, UUID player) {

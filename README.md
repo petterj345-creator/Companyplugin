@@ -6,17 +6,19 @@ A Paper 1.21.x plugin that adds player-run companies with levels, licenses, rota
 
 - **Found a company** for a configurable fee — pick any name (alphanumeric).
 - **Company bank** with deposits and taxed withdrawals.
-- **Daily tax tick** (% of balance) — disable by setting to 0.
+- **Earnings tax tick** — every 3 hours (configurable), the server takes a configurable % of the company's **earnings since the last tick** (completed job rewards only). Deposits and existing balance aren't taxed again. Window counter resets after each tick.
 - **Auto-disband** if balance drops below a minimum (default `-10000`).
+- **Auto-payout to contributors** — every ~20 minutes (1 Minecraft day, configurable), every member who completed jobs gets a configurable percentage of their queued earnings paid directly to their personal Vault balance. The owner sets the rate (min 10%, max 100%, default 10%). If the company can't afford the payout this cycle, it's skipped and the queue persists until next time. Fired workers are paid out their full pending balance immediately.
+- **Tax + payout countdowns** — hover the main info icon to see how long until the next daily tax tick and next payout.
 - **Company levels** — spend company funds to level up. Each level grants a small reward multiplier on all jobs. Cost grows exponentially with level. Current level appears on the main info icon hover.
 - **License system** — admins define license types via an in-game GUI. Each license type can have **multiple job templates**; the license rotates between them, giving variety. Companies buy licenses with company funds.
-- **Rotating jobs** — every active license picks one of its templates at random every X minutes (default 180 = 3h) and turns it into a randomized delivery job. Expired licenses get pruned automatically.
+- **Rotating jobs** — every active license picks one of its templates at random every X minutes (default 180 = 3h) and turns it into a randomized delivery job. Expired licenses get pruned automatically. **Completed or expired jobs are also re-rolled instantly when a player opens the Jobs GUI**, so you never have to wait for the next rotation just because you finished early.
 - **In-GUI delivery** — drop items into slots inside the jobs GUI to fulfil active jobs.
 - **Worker hiring** — companies toggle themselves "hiring", players see them on the public job board (`/company jobs`), apply, and the owner/manager accepts in-GUI.
 - **Salary button** — owner/manager left-click a worker's head and enter an amount in chat.
 - **Roles** — Owner, Manager, Worker. Owners can disband; managers can hire/buy licenses/withdraw/upgrade; workers can deposit and deliver.
 - **Contribution tracker** — every deposit and completed job adds to the contributor's lifetime stat.
-- **Admin panel** — `companies.admin` permission unlocks an icon in the main GUI and `/company admin`.
+- **Admin panel** — `companies.admin` permission unlocks an icon in the main GUI and `/company admin`. Includes a **Server Settings** submenu where you can change taxes, costs, and intervals in-game; values save to `config.yml` immediately. `/company reload` re-reads the config without restarting (interval changes still need a restart to fully apply).
 - **Back buttons** everywhere — every submenu has an arrow to step back up the hierarchy.
 
 ## Dependencies
@@ -48,6 +50,7 @@ This repo builds itself on GitHub. You don't need Java or Maven installed locall
 | `/company jobs` | Open the public hiring board |
 | `/company leave` | Leave your current company (non-owners) |
 | `/company admin` | Open the admin license-type panel (needs `companies.admin`) |
+| `/company reload` | Reload `config.yml` (needs `companies.admin`) |
 
 ## Permissions
 
@@ -62,8 +65,8 @@ This repo builds itself on GitHub. You don't need Java or Maven installed locall
 economy:
   creation-cost: 25000.0
   withdraw-tax-percent: 10.0
-  daily-tax-percent: 2.0
-  daily-tax-interval-minutes: 1440
+  earnings-tax-percent: 15.0       # % of earnings each window
+  earnings-tax-interval-minutes: 180  # 3h
 
 company:
   min-balance: -10000.0
@@ -82,6 +85,12 @@ jobs:
   reward-max-multiplier: 1.2
   amount-min-multiplier: 0.8
   amount-max-multiplier: 1.2
+
+payout:
+  interval-minutes: 20      # default: every Minecraft day
+  min-percent: 10.0
+  max-percent: 100.0
+  default-percent: 10.0
 ```
 
 ## How licenses work

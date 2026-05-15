@@ -3,6 +3,7 @@ package dk.companies;
 import dk.companies.commands.CompanyCommand;
 import dk.companies.data.DataStore;
 import dk.companies.economy.CompanyManager;
+import dk.companies.economy.PayoutManager;
 import dk.companies.economy.VaultHook;
 import dk.companies.gui.ChatInput;
 import dk.companies.gui.GuiListener;
@@ -17,9 +18,16 @@ public class Companies extends JavaPlugin {
     private VaultHook vault;
     private CompanyManager companies;
     private LicenseManager licenses;
+    private PayoutManager payouts;
 
     private BukkitTask rotationTask;
     private BukkitTask taxTask;
+    private BukkitTask payoutTask;
+
+    // Wall-clock millis of the next scheduled fire for each task, for GUI display.
+    private long nextTaxAt;
+    private long nextPayoutAt;
+    private long nextRotationAt;
 
     @Override
     public void onEnable() {
@@ -45,6 +53,7 @@ public class Companies extends JavaPlugin {
 
         companies = new CompanyManager(this, data, vault);
         licenses = new LicenseManager(this, data, companies);
+        payouts = new PayoutManager(this, data, vault);
 
         // Roll a job for every license that doesn't have one (happens after first reload).
         for (var c : data.getCompanies()) {
@@ -56,11 +65,9 @@ public class Companies extends JavaPlugin {
             }
         }
 
-        // Events
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
         getServer().getPluginManager().registerEvents(new ChatInput(this), this);
 
-        // Commands
         var cmd = getCommand("company");
         if (cmd != null) {
             CompanyCommand exec = new CompanyCommand(this);
@@ -70,11 +77,28 @@ public class Companies extends JavaPlugin {
 
         // Scheduled tasks
         long rotMinutes = Math.max(1, getConfig().getLong("jobs.rotation-minutes", 180));
-        long taxMinutes = Math.max(1, getConfig().getLong("economy.daily-tax-interval-minutes", 1440));
-        rotationTask = getServer().getScheduler().runTaskTimer(
-                this, () -> licenses.rotateAll(), rotMinutes * 60L * 20L, rotMinutes * 60L * 20L);
-        taxTask = getServer().getScheduler().runTaskTimer(
-                this, () -> companies.runDailyTaxTick(), taxMinutes * 60L * 20L, taxMinutes * 60L * 20L);
+        long taxMinutes = Math.max(1, getConfig().getLong("economy.earnings-tax-interval-minutes", 180));
+        long payoutMinutes = Math.max(1, getConfig().getLong("payout.interval-minutes", 20));
+
+        long now = System.currentTimeMillis();
+        nextRotationAt = now + rotMinutes * 60_000L;
+        nextTaxAt = now + taxMinutes * 60_000L;
+        nextPayoutAt = now + payoutMinutes * 60_000L;
+
+        rotationTask = getServer().getScheduler().runTaskTimer(this, () -> {
+            licenses.rotateAll();
+            nextRotationAt = System.currentTimeMillis() + rotMinutes * 60_000L;
+        }, rotMinutes * 60L * 20L, rotMinutes * 60L * 20L);
+
+        taxTask = getServer().getScheduler().runTaskTimer(this, () -> {
+            companies.runEarningsTaxTick();
+            nextTaxAt = System.currentTimeMillis() + taxMinutes * 60_000L;
+        }, taxMinutes * 60L * 20L, taxMinutes * 60L * 20L);
+
+        payoutTask = getServer().getScheduler().runTaskTimer(this, () -> {
+            payouts.runPayoutTick();
+            nextPayoutAt = System.currentTimeMillis() + payoutMinutes * 60_000L;
+        }, payoutMinutes * 60L * 20L, payoutMinutes * 60L * 20L);
 
         getLogger().info("Companies enabled. Loaded " + data.getCompanies().size()
                 + " companies, " + data.getLicenseTypes().size() + " license types.");
@@ -84,6 +108,7 @@ public class Companies extends JavaPlugin {
     public void onDisable() {
         if (rotationTask != null) rotationTask.cancel();
         if (taxTask != null) taxTask.cancel();
+        if (payoutTask != null) payoutTask.cancel();
         if (data != null) data.close();
     }
 
@@ -91,4 +116,9 @@ public class Companies extends JavaPlugin {
     public VaultHook vault() { return vault; }
     public CompanyManager companies() { return companies; }
     public LicenseManager licenses() { return licenses; }
+    public PayoutManager payouts() { return payouts; }
+
+    public long getNextTaxAt() { return nextTaxAt; }
+    public long getNextPayoutAt() { return nextPayoutAt; }
+    public long getNextRotationAt() { return nextRotationAt; }
 }

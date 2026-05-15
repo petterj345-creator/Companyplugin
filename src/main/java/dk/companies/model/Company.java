@@ -21,6 +21,12 @@ public class Company {
     private final Map<UUID, Double> contributions = new ConcurrentHashMap<>();
     /** member uuid -> total items delivered to jobs (lifetime) */
     private final Map<UUID, Long> itemsDelivered = new ConcurrentHashMap<>();
+    /** member uuid -> earnings accrued but not yet paid out via auto-payout */
+    private final Map<UUID, Double> unpaidEarnings = new ConcurrentHashMap<>();
+    /** Percent (0-100) of unpaid earnings paid out to each contributor per payout tick. */
+    private double payoutPercent = 10.0;
+    /** Company earnings (from completed jobs) since the last tax tick. Reset each tick. */
+    private double earningsThisWindow = 0;
     /** active licenses installed into this company */
     private final List<License> licenses = new ArrayList<>();
     /** currently open job applications (by player uuid) */
@@ -49,6 +55,12 @@ public class Company {
     public Map<UUID, Role> getMembers() { return members; }
     public Map<UUID, Double> getContributions() { return contributions; }
     public Map<UUID, Long> getItemsDelivered() { return itemsDelivered; }
+    public Map<UUID, Double> getUnpaidEarnings() { return unpaidEarnings; }
+    public double getPayoutPercent() { return payoutPercent; }
+    public void setPayoutPercent(double p) { this.payoutPercent = p; }
+    public double getEarningsThisWindow() { return earningsThisWindow; }
+    public void setEarningsThisWindow(double v) { this.earningsThisWindow = v; }
+    public void addEarningsThisWindow(double v) { this.earningsThisWindow += v; }
     public List<License> getLicenses() { return licenses; }
     public Set<UUID> getApplicants() { return applicants; }
     public boolean isHiring() { return hiring; }
@@ -68,6 +80,10 @@ public class Company {
 
     public void addItemsDelivered(UUID player, long amount) {
         itemsDelivered.merge(player, amount, Long::sum);
+    }
+
+    public void addUnpaidEarnings(UUID player, double amount) {
+        unpaidEarnings.merge(player, amount, Double::sum);
     }
 
     public License getLicenseFor(Material material) {

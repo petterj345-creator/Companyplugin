@@ -57,6 +57,10 @@ public class AdminMenu extends Menu {
                 .name("&aCreate new license type")
                 .lore("&7Opens the builder.")
                 .glow(true).build());
+        inv.setItem(53, ItemBuilder.of(Material.COMPARATOR)
+                .name("&5Server Settings")
+                .lore("&7Edit taxes, costs, and intervals.")
+                .build());
         inv.setItem(45, ItemBuilder.of(Material.ARROW).name("&7Back").build());
 
         Bukkit.getScheduler().runTask(plugin, () -> {
@@ -76,6 +80,10 @@ public class AdminMenu extends Menu {
         }
         if (raw == 49) {
             new AdminBuilderMenu(plugin, viewer, new AdminBuilderMenu.Draft()).open();
+            return;
+        }
+        if (raw == 53) {
+            new AdminSettingsMenu(plugin, viewer).open();
             return;
         }
         if (raw >= 9 && raw < 45) {

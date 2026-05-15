@@ -35,6 +35,7 @@ public class MainMenu extends Menu {
 
         // Info / balance
         var lvl = plugin.companies().levels();
+        double taxPct = plugin.getConfig().getDouble("economy.earnings-tax-percent", 15.0);
         inv.setItem(slotFor(1, 4), ItemBuilder.of(Material.GOLD_INGOT)
                 .name("&6&l" + company.getName())
                 .lore("&7Level: &e" + company.getLevel() + (lvl.atMax(company) ? " &8(max)" : ""),
@@ -43,7 +44,13 @@ public class MainMenu extends Menu {
                         "&7Members: &f" + company.getMembers().size(),
                         "&7Your role: &b" + (role == null ? "—" : role.name()),
                         "&7Active licenses: &f" + company.getLicenses().size(),
-                        "&7Hiring: " + (company.isHiring() ? "&aOpen" : "&cClosed"))
+                        "&7Hiring: " + (company.isHiring() ? "&aOpen" : "&cClosed"),
+                        "",
+                        "&7Earnings this window: &a" + FormatUtil.money(company.getEarningsThisWindow()),
+                        "&7Next tax (" + String.format("%.0f%%", taxPct) + " of earnings): &c"
+                                + FormatUtil.remaining(plugin.getNextTaxAt()),
+                        "&7Next payout: &a" + FormatUtil.remaining(plugin.getNextPayoutAt()),
+                        "&7Payout rate: &e" + String.format("%.0f%%", company.getPayoutPercent()))
                 .build());
 
         // Deposit
@@ -137,6 +144,21 @@ public class MainMenu extends Menu {
                     .build());
         }
 
+        // Payout rate (owner only)
+        if (role == Role.OWNER) {
+            double minP = plugin.getConfig().getDouble("payout.min-percent", 10.0);
+            double maxP = plugin.getConfig().getDouble("payout.max-percent", 100.0);
+            inv.setItem(slotFor(3, 1), ItemBuilder.of(Material.GOLD_NUGGET)
+                    .name("&6Payout rate: &e" + String.format("%.0f%%", company.getPayoutPercent()))
+                    .lore("&7Each payout tick, contributors get this",
+                            "&7percentage of their pending earnings.",
+                            "&7Min: &e" + String.format("%.0f%%", minP) + " &7Max: &e" + String.format("%.0f%%", maxP),
+                            "&7Next payout: &a" + FormatUtil.remaining(plugin.getNextPayoutAt()),
+                            "",
+                            "&8Click to set rate.")
+                    .build());
+        }
+
         // Admin panel (permission)
         if (viewer.hasPermission("companies.admin")) {
             inv.setItem(slotFor(4, 0), ItemBuilder.of(Material.COMMAND_BLOCK)
@@ -205,7 +227,40 @@ public class MainMenu extends Menu {
             }
         } else if (slot == slotFor(4, 0) && viewer.hasPermission("companies.admin")) {
             new AdminMenu(plugin, viewer).open();
+        } else if (slot == slotFor(3, 1) && role == Role.OWNER) {
+            promptPayoutPercent();
         }
+    }
+
+    private void promptPayoutPercent() {
+        double minP = plugin.getConfig().getDouble("payout.min-percent", 10.0);
+        double maxP = plugin.getConfig().getDouble("payout.max-percent", 100.0);
+        viewer.closeInventory();
+        MessageUtil.send(viewer, "&eType the payout percentage (between "
+                + String.format("%.0f", minP) + " and " + String.format("%.0f", maxP)
+                + ", e.g. '10' or '25.5'), or 'cancel':");
+        ChatInput.prompt(viewer, text -> {
+            if (text.equalsIgnoreCase("cancel")) { open(); return; }
+            try {
+                double v = Double.parseDouble(text.trim().replace("%", ""));
+                if (v < minP) {
+                    MessageUtil.send(viewer, "&cMust be at least " + String.format("%.0f%%", minP) + ".");
+                    open();
+                    return;
+                }
+                if (v > maxP) {
+                    MessageUtil.send(viewer, "&cMust be at most " + String.format("%.0f%%", maxP) + ".");
+                    open();
+                    return;
+                }
+                company.setPayoutPercent(v);
+                plugin.companies().data().saveCompany(company);
+                MessageUtil.send(viewer, "&aPayout rate set to &e" + String.format("%.1f%%", v));
+            } catch (NumberFormatException ex) {
+                MessageUtil.send(viewer, "&cNot a number.");
+            }
+            open();
+        });
     }
 
     private void promptDeposit() {

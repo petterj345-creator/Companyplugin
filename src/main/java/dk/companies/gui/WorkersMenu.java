@@ -53,6 +53,7 @@ public class WorkersMenu extends Menu {
             Role role = company.getRole(id);
             double contrib = company.getContributions().getOrDefault(id, 0.0);
             long items = company.getItemsDelivered().getOrDefault(id, 0L);
+            double pending = company.getUnpaidEarnings().getOrDefault(id, 0.0);
             ItemStack head = new ItemStack(Material.PLAYER_HEAD);
             if (head.getItemMeta() instanceof SkullMeta sm) {
                 sm.setOwningPlayer(op);
@@ -62,6 +63,7 @@ public class WorkersMenu extends Menu {
                     .lore("&7Role: &b" + role.name(),
                             "&7Items delivered: &f" + items,
                             "&7Earned for company: &a" + FormatUtil.money(contrib),
+                            "&7Pending payout: &6" + FormatUtil.money(pending),
                             "",
                             viewer.hasPermission("companies.use") && canManage()
                                     ? "&8Left-click: pay salary"

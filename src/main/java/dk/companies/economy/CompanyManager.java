@@ -114,16 +114,29 @@ public class CompanyManager {
         return TxResult.OK;
     }
 
-    /** Daily tax tick: percent of balance is removed. Companies under min-balance get disbanded. */
-    public void runDailyTaxTick() {
-        double taxPct = plugin.getConfig().getDouble("economy.daily-tax-percent", 0.0);
+    /**
+     * Earnings tax tick: takes a percentage of what the company has earned (from completed jobs)
+     * since the last tick, then resets the window counter. Companies under min-balance get disbanded.
+     */
+    public void runEarningsTaxTick() {
+        double taxPct = plugin.getConfig().getDouble("economy.earnings-tax-percent", 0.0);
         double minBal = plugin.getConfig().getDouble("company.min-balance", -10000.0);
-        if (taxPct <= 0) return;
 
         for (Company c : new java.util.ArrayList<>(data.getCompanies())) {
-            if (c.getBalance() <= 0) continue; // don't dig deeper into debt
-            double tax = c.getBalance() * (taxPct / 100.0);
-            c.setBalance(c.getBalance() - tax);
+            double earnings = c.getEarningsThisWindow();
+            if (earnings > 0 && taxPct > 0) {
+                double tax = earnings * (taxPct / 100.0);
+                c.setBalance(c.getBalance() - tax);
+                Player owner = plugin.getServer().getPlayer(c.getOwner());
+                if (owner != null) {
+                    dk.companies.util.MessageUtil.send(owner,
+                            "&7[" + c.getName() + "] Tax taken: &c"
+                                    + dk.companies.util.FormatUtil.money(tax)
+                                    + " &7(" + String.format("%.0f%%", taxPct)
+                                    + " of " + dk.companies.util.FormatUtil.money(earnings) + " earned).");
+                }
+            }
+            c.setEarningsThisWindow(0); // reset window even if no tax was due
             data.saveCompany(c);
         }
         // separate sweep: anyone under min-balance gets disbanded
@@ -159,8 +172,22 @@ public class CompanyManager {
 
     public void fire(Company c, UUID player) {
         if (player.equals(c.getOwner())) return;
+        // Pay out any pending earnings as a final lump-sum.
+        Double pending = c.getUnpaidEarnings().get(player);
+        if (pending != null && pending > 0.009) {
+            double minBal = plugin.getConfig().getDouble("company.min-balance", -10000.0);
+            double payable = Math.min(pending, c.getBalance() - minBal);
+            if (payable > 0) {
+                if (vault.deposit(plugin.getServer().getOfflinePlayer(player), payable)) {
+                    c.setBalance(c.getBalance() - payable);
+                }
+            }
+        }
+        c.getUnpaidEarnings().remove(player);
         c.getMembers().remove(player);
         data.deleteMember(c.getId(), player);
+        data.deleteUnpaidEarnings(c.getId(), player);
+        data.saveCompany(c);
     }
 
     public void promote(Company c, UUID player) {

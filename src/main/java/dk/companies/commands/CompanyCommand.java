@@ -76,6 +76,14 @@ public class CompanyCommand implements CommandExecutor, TabCompleter {
                 plugin.companies().fire(c, p.getUniqueId());
                 MessageUtil.send(p, "&7You left &6" + c.getName());
             }
+            case "reload" -> {
+                if (!p.hasPermission("companies.admin")) {
+                    MessageUtil.send(p, "&cNo permission.");
+                    return true;
+                }
+                plugin.reloadConfig();
+                MessageUtil.send(p, "&aConfig reloaded. &7(Interval changes need a full server restart to fully apply.)");
+            }
             default -> sendHelp(p);
         }
         return true;
@@ -93,8 +101,10 @@ public class CompanyCommand implements CommandExecutor, TabCompleter {
         p.sendMessage(MessageUtil.color(" &e/company create <name> &7- found a new company"));
         p.sendMessage(MessageUtil.color(" &e/company jobs &7- open the public job board"));
         p.sendMessage(MessageUtil.color(" &e/company leave &7- leave your current company"));
-        if (p.hasPermission("companies.admin"))
+        if (p.hasPermission("companies.admin")) {
             p.sendMessage(MessageUtil.color(" &e/company admin &7- license type admin panel"));
+            p.sendMessage(MessageUtil.color(" &e/company reload &7- reload config.yml"));
+        }
     }
 
     @Override
@@ -102,7 +112,10 @@ public class CompanyCommand implements CommandExecutor, TabCompleter {
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> out = new ArrayList<>(Arrays.asList("help", "create", "jobs", "leave"));
-            if (sender.hasPermission("companies.admin")) out.add("admin");
+            if (sender.hasPermission("companies.admin")) {
+                out.add("admin");
+                out.add("reload");
+            }
             return out;
         }
         return List.of();
