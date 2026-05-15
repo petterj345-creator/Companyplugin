@@ -114,8 +114,12 @@ public class DataStore {
                     name TEXT NOT NULL,
                     icon_material TEXT NOT NULL,
                     price REAL NOT NULL,
-                    valid_duration_millis INTEGER NOT NULL
+                    valid_duration_millis INTEGER NOT NULL,
+                    required_level INTEGER NOT NULL DEFAULT 1
                 )""");
+            try (Statement s2 = conn.createStatement()) {
+                s2.execute("ALTER TABLE license_types ADD COLUMN required_level INTEGER NOT NULL DEFAULT 1");
+            } catch (SQLException ignored) {}
             s.execute("""
                 CREATE TABLE IF NOT EXISTS job_templates (
                     license_type_id TEXT NOT NULL,
@@ -149,6 +153,7 @@ public class DataStore {
                             Material.valueOf(rs.getString("icon_material")),
                             rs.getDouble("price"),
                             rs.getLong("valid_duration_millis"));
+                    try { lt.setRequiredLevel(rs.getInt("required_level")); } catch (SQLException ignored) {}
                     licenseTypes.put(lt.getId(), lt);
                 }
             }
@@ -361,13 +366,14 @@ public class DataStore {
 
     public void saveLicenseType(LicenseType lt) {
         try (PreparedStatement ps = conn.prepareStatement("""
-                INSERT OR REPLACE INTO license_types(id,name,icon_material,price,valid_duration_millis)
-                VALUES(?,?,?,?,?)""")) {
+                INSERT OR REPLACE INTO license_types(id,name,icon_material,price,valid_duration_millis,required_level)
+                VALUES(?,?,?,?,?,?)""")) {
             ps.setString(1, lt.getId().toString());
             ps.setString(2, lt.getName());
             ps.setString(3, lt.getIconMaterial().name());
             ps.setDouble(4, lt.getPrice());
             ps.setLong(5, lt.getValidDurationMillis());
+            ps.setInt(6, lt.getRequiredLevel());
             ps.executeUpdate();
         } catch (SQLException e) { plugin.getLogger().warning("saveLicenseType: " + e.getMessage()); }
 

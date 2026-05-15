@@ -45,6 +45,7 @@ public class AdminMenu extends Menu {
                     .name("&e" + lt.getName())
                     .lore("&7Icon material: &f" + lt.getIconMaterial().name(),
                             "&7Job templates: &f" + lt.getJobs().size(),
+                            "&7Required level: &f" + lt.getRequiredLevel(),
                             "&7License price: &6" + FormatUtil.money(lt.getPrice()),
                             "&7Lifetime: &f" + FormatUtil.duration(lt.getValidDurationMillis()),
                             "",
@@ -102,6 +103,7 @@ public class AdminMenu extends Menu {
                 d.iconMaterial = lt.getIconMaterial();
                 d.price = lt.getPrice();
                 d.validDurationMillis = lt.getValidDurationMillis();
+                d.requiredLevel = lt.getRequiredLevel();
                 for (dk.companies.model.JobTemplate jt : lt.getJobs()) {
                     AdminBuilderMenu.JobDraft jd = new AdminBuilderMenu.JobDraft();
                     jd.material = jt.getMaterial();

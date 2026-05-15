@@ -20,6 +20,7 @@ public class LicenseType {
     private Material iconMaterial;        // display only — appears in the shop
     private double price;                 // shop price for the license
     private long validDurationMillis;     // total lifetime once bought
+    private int requiredLevel = 1;        // minimum company level to purchase
     private final List<JobTemplate> jobs = new ArrayList<>();
 
     public LicenseType(UUID id, String name, Material iconMaterial,
@@ -40,5 +41,7 @@ public class LicenseType {
     public void setPrice(double price) { this.price = price; }
     public long getValidDurationMillis() { return validDurationMillis; }
     public void setValidDurationMillis(long validDurationMillis) { this.validDurationMillis = validDurationMillis; }
+    public int getRequiredLevel() { return requiredLevel; }
+    public void setRequiredLevel(int requiredLevel) { this.requiredLevel = Math.max(1, requiredLevel); }
     public List<JobTemplate> getJobs() { return jobs; }
 }

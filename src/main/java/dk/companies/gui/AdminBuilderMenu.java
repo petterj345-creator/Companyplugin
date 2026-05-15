@@ -34,6 +34,7 @@ public class AdminBuilderMenu extends Menu {
         public Material iconMaterial;                 // icon shown in the shop
         public double price = 5000.0;
         public long validDurationMillis = 7L * 24 * 60 * 60_000L; // 7d
+        public int requiredLevel = 1;
         public final List<JobDraft> jobs = new ArrayList<>();
     }
 
@@ -67,6 +68,12 @@ public class AdminBuilderMenu extends Menu {
         inv.setItem(15, ItemBuilder.of(Material.ENDER_PEARL)
                 .name("&eLicense lifetime: &f" + FormatUtil.duration(draft.validDurationMillis))
                 .lore("&8Click to set in chat (e.g. '7d', '24h').").build());
+
+        inv.setItem(17, ItemBuilder.of(Material.EXPERIENCE_BOTTLE)
+                .name("&eRequired company level: &f" + draft.requiredLevel)
+                .lore("&7Companies must be at least this level",
+                        "&7to purchase this license.",
+                        "&8Click to set in chat.").build());
 
         inv.setItem(22, ItemBuilder.of(Material.WRITABLE_BOOK)
                 .name("&bJob rotation: &f" + draft.jobs.size() + " job(s)")
@@ -122,6 +129,8 @@ public class AdminBuilderMenu extends Menu {
             case 13 -> promptDouble("Type the license price:", v -> { draft.price = v; open(); });
             case 15 -> promptDuration("Type the license lifetime (e.g. 7d, 24h):",
                     v -> { draft.validDurationMillis = v; open(); });
+            case 17 -> promptInt("Type the required company level (1+):",
+                    v -> { draft.requiredLevel = Math.max(1, v); open(); });
             case 22 -> new JobsListMenu(plugin, viewer, draft).open();
             case 36 -> new AdminMenu(plugin, viewer).open();
             case 40 -> save();
@@ -140,6 +149,7 @@ public class AdminBuilderMenu extends Menu {
         UUID id = draft.editingId != null ? draft.editingId : UUID.randomUUID();
         LicenseType lt = new LicenseType(id, draft.name, draft.iconMaterial,
                 draft.price, draft.validDurationMillis);
+        lt.setRequiredLevel(draft.requiredLevel);
         for (JobDraft jd : draft.jobs) {
             if (jd.material == null) continue;
             lt.getJobs().add(new JobTemplate(jd.material, jd.baseAmount, jd.baseReward, jd.jobDurationMillis));
@@ -169,6 +179,16 @@ public class AdminBuilderMenu extends Menu {
         ChatInput.prompt(viewer, text -> {
             if (text.equalsIgnoreCase("cancel")) { open(); return; }
             try { cb.accept(Double.parseDouble(text.trim())); }
+            catch (NumberFormatException ex) { MessageUtil.send(viewer, "&cNot a number."); open(); }
+        });
+    }
+
+    private void promptInt(String msg, java.util.function.IntConsumer cb) {
+        viewer.closeInventory();
+        MessageUtil.send(viewer, "&e" + msg);
+        ChatInput.prompt(viewer, text -> {
+            if (text.equalsIgnoreCase("cancel")) { open(); return; }
+            try { cb.accept(Integer.parseInt(text.trim())); }
             catch (NumberFormatException ex) { MessageUtil.send(viewer, "&cNot a number."); open(); }
         });
     }

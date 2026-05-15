@@ -20,7 +20,7 @@ public class LicenseManager {
         this.companies = companies;
     }
 
-    public enum BuyResult { OK, NO_TYPE, NOT_ENOUGH_FUNDS, NO_PERMISSION, NO_JOBS_DEFINED }
+    public enum BuyResult { OK, NO_TYPE, NOT_ENOUGH_FUNDS, NO_PERMISSION, NO_JOBS_DEFINED, LEVEL_TOO_LOW }
 
     public BuyResult buy(Company c, UUID buyer, UUID typeId) {
         Role role = c.getRole(buyer);
@@ -28,6 +28,7 @@ public class LicenseManager {
         LicenseType type = data.getLicenseType(typeId);
         if (type == null) return BuyResult.NO_TYPE;
         if (type.getJobs().isEmpty()) return BuyResult.NO_JOBS_DEFINED;
+        if (c.getLevel() < type.getRequiredLevel()) return BuyResult.LEVEL_TOO_LOW;
         if (c.getBalance() < type.getPrice()) return BuyResult.NOT_ENOUGH_FUNDS;
 
         c.setBalance(c.getBalance() - type.getPrice());

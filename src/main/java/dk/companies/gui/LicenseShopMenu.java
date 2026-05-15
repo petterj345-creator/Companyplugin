@@ -46,14 +46,21 @@ public class LicenseShopMenu extends Menu {
             if (slot >= 18) break;
             typeBySlot.add(lt);
             String jobsSummary = lt.getJobs().isEmpty() ? "&cno jobs configured" : "&f" + lt.getJobs().size() + " job type(s)";
+            boolean meetsLevel = company.getLevel() >= lt.getRequiredLevel();
+            String levelLine = meetsLevel
+                    ? "&7Requires level: &a" + lt.getRequiredLevel()
+                    : "&7Requires level: &c" + lt.getRequiredLevel()
+                            + " &8(you are " + company.getLevel() + ")";
             inv.setItem(slot++, ItemBuilder.of(lt.getIconMaterial())
-                    .name("&e" + lt.getName())
+                    .name((meetsLevel ? "&e" : "&8") + lt.getName())
                     .lore("&7Rotation pool: " + jobsSummary,
+                            levelLine,
                             "&7Lifetime: &f" + FormatUtil.duration(lt.getValidDurationMillis()),
                             "&7Price: &6" + FormatUtil.money(lt.getPrice()),
                             "",
-                            "&8Click to buy with company funds.")
-                    .glow(true)
+                            meetsLevel ? "&8Click to buy with company funds."
+                                    : "&cCompany level too low.")
+                    .glow(meetsLevel)
                     .build());
         }
 
@@ -107,6 +114,8 @@ public class LicenseShopMenu extends Menu {
                 case NO_PERMISSION -> MessageUtil.send(viewer, "&cNo permission.");
                 case NO_TYPE -> MessageUtil.send(viewer, "&cThat license no longer exists.");
                 case NO_JOBS_DEFINED -> MessageUtil.send(viewer, "&cThat license has no jobs configured yet.");
+                case LEVEL_TOO_LOW -> MessageUtil.send(viewer,
+                        "&cCompany level &f" + company.getLevel() + " &cis below required &f" + lt.getRequiredLevel() + "&c.");
             }
             open();
         }
