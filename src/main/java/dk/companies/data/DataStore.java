@@ -292,8 +292,22 @@ public class DataStore {
 
     // ───── mutations ─────
     public void saveCompany(Company c) {
-        try (PreparedStatement ps = conn.prepareStatement(
-                "INSERT OR REPLACE INTO companies(id,name,owner,balance,created_at,hiring,level,payout_percent,earnings_this_window) VALUES(?,?,?,?,?,?,?,?,?)")) {
+        // NOTE: SQLite's "INSERT OR REPLACE" deletes the existing row, which triggers
+        // ON DELETE CASCADE on every child table (members, contributions, etc.).
+        // We use ON CONFLICT ... DO UPDATE to preserve children.
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO companies(id,name,owner,balance,created_at,hiring,level,payout_percent,earnings_this_window)
+                VALUES(?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(id) DO UPDATE SET
+                  name = excluded.name,
+                  owner = excluded.owner,
+                  balance = excluded.balance,
+                  created_at = excluded.created_at,
+                  hiring = excluded.hiring,
+                  level = excluded.level,
+                  payout_percent = excluded.payout_percent,
+                  earnings_this_window = excluded.earnings_this_window
+                """)) {
             ps.setString(1, c.getId().toString());
             ps.setString(2, c.getName());
             ps.setString(3, c.getOwner().toString());
@@ -394,8 +408,15 @@ public class DataStore {
 
     public void saveLicenseType(LicenseType lt) {
         try (PreparedStatement ps = conn.prepareStatement("""
-                INSERT OR REPLACE INTO license_types(id,name,icon_material,price,valid_duration_millis,required_level)
-                VALUES(?,?,?,?,?,?)""")) {
+                INSERT INTO license_types(id,name,icon_material,price,valid_duration_millis,required_level)
+                VALUES(?,?,?,?,?,?)
+                ON CONFLICT(id) DO UPDATE SET
+                  name = excluded.name,
+                  icon_material = excluded.icon_material,
+                  price = excluded.price,
+                  valid_duration_millis = excluded.valid_duration_millis,
+                  required_level = excluded.required_level
+                """)) {
             ps.setString(1, lt.getId().toString());
             ps.setString(2, lt.getName());
             ps.setString(3, lt.getIconMaterial().name());
