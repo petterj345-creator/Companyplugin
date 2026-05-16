@@ -63,7 +63,7 @@ public class WorkersMenu extends Menu {
                     .lore("&7Role: &b" + role.name(),
                             "&7Items delivered: &f" + items,
                             "&7Earned for company: &a" + FormatUtil.money(contrib),
-                            "&7Pending payout: &6" + FormatUtil.money(pending),
+                            role == Role.OWNER ? "" : "&7Pending payout: &6" + FormatUtil.money(pending),
                             "",
                             viewer.hasPermission("companies.use") && canManage()
                                     ? "&8Left-click: pay salary"

@@ -97,7 +97,7 @@ public class CompanyManager {
         return TxResult.OK;
     }
 
-    /** Pay a salary from company balance directly to a player. */
+    /** Pay a salary from company balance directly to a player. Reduces their unpaid-earnings queue first. */
     public TxResult paySalary(Player payer, Company c, OfflinePlayer target, double amount) {
         Role role = c.getRole(payer.getUniqueId());
         if (role == null || !role.canWithdraw()) return TxResult.NO_PERMISSION;
@@ -110,6 +110,22 @@ public class CompanyManager {
             c.setBalance(c.getBalance() + amount);
             return TxResult.FAILED;
         }
+
+        // Treat the salary as an advance against any pending payout, up to the amount paid.
+        UUID targetId = target.getUniqueId();
+        double pending = c.getUnpaidEarnings().getOrDefault(targetId, 0.0);
+        if (pending > 0) {
+            double drained = Math.min(pending, amount);
+            double remaining = pending - drained;
+            if (remaining <= 0.009) {
+                c.getUnpaidEarnings().remove(targetId);
+                data.deleteUnpaidEarnings(c.getId(), targetId);
+            } else {
+                c.getUnpaidEarnings().put(targetId, remaining);
+                data.saveUnpaidEarnings(c.getId(), targetId, remaining);
+            }
+        }
+
         data.saveCompany(c);
         return TxResult.OK;
     }

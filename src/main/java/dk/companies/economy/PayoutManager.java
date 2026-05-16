@@ -36,9 +36,12 @@ public class PayoutManager {
             if (pct <= 0) continue;
             if (c.getUnpaidEarnings().isEmpty()) continue;
 
-            // Sum what we'd need to pay out.
+            // Sum what we'd need to pay out — owners don't get payouts (they own the balance).
             double totalNeeded = 0;
-            for (double v : c.getUnpaidEarnings().values()) totalNeeded += v * (pct / 100.0);
+            for (Map.Entry<UUID, Double> e : c.getUnpaidEarnings().entrySet()) {
+                if (e.getKey().equals(c.getOwner())) continue;
+                totalNeeded += e.getValue() * (pct / 100.0);
+            }
 
             if (totalNeeded <= 0.009) continue;
 
@@ -55,6 +58,7 @@ public class PayoutManager {
             // Pay each contributor their share.
             for (Map.Entry<UUID, Double> e : new java.util.HashMap<>(c.getUnpaidEarnings()).entrySet()) {
                 UUID playerId = e.getKey();
+                if (playerId.equals(c.getOwner())) continue; // owners aren't paid out
                 double pending = e.getValue();
                 if (pending <= 0) continue;
 

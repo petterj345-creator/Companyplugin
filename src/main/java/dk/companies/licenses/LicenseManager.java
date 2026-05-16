@@ -108,7 +108,7 @@ public class LicenseManager {
         }
     }
 
-    public DeliveryResult tryDeliver(Company c, org.bukkit.Material material, int amount) {
+    public DeliveryResult tryDeliver(Company c, UUID deliverer, org.bukkit.Material material, int amount) {
         long now = System.currentTimeMillis();
         for (License l : c.getLicenses()) {
             if (l.getExpiresAt() < now) continue;
@@ -118,7 +118,7 @@ public class LicenseManager {
 
             int needed = j.getRemaining();
             int take = Math.min(needed, amount);
-            j.addDelivered(take);
+            j.addDelivered(deliverer, take);
             int leftover = amount - take;
 
             DeliveryResult r = new DeliveryResult();
@@ -130,6 +130,12 @@ public class LicenseManager {
             if (r.completed) {
                 c.setBalance(c.getBalance() + j.getReward());
                 c.addEarningsThisWindow(j.getReward());
+                // Split the reward proportionally across everyone who contributed to this job.
+                int total = j.getRequiredAmount();
+                for (Map.Entry<UUID, Integer> entry : j.getContributorAmounts().entrySet()) {
+                    double share = j.getReward() * (entry.getValue() / (double) total);
+                    r.rewardShares.merge(entry.getKey(), share, Double::sum);
+                }
                 data.saveCompany(c);
                 LicenseType type = data.getLicenseType(l.getTypeId());
                 if (type != null) rollJob(c, l, type);
@@ -150,5 +156,7 @@ public class LicenseManager {
         public License license;
         public Job job;
         public boolean completed;
+        /** Per-player reward shares (only populated when {@code completed} is true). */
+        public final java.util.Map<UUID, Double> rewardShares = new java.util.HashMap<>();
     }
 }

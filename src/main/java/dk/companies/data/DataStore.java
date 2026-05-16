@@ -235,6 +235,18 @@ public class DataStore {
                             rs.getDouble("amount"));
                 }
             }
+            // Clean up any leftover unpaid earnings belonging to current owners
+            // (owners don't get payouts; stale data from old plugin versions can linger here).
+            for (Company c : companies.values()) {
+                if (c.getUnpaidEarnings().remove(c.getOwner()) != null) {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "DELETE FROM unpaid_earnings WHERE company_id = ? AND player = ?")) {
+                        ps.setString(1, c.getId().toString());
+                        ps.setString(2, c.getOwner().toString());
+                        ps.executeUpdate();
+                    } catch (SQLException ignored) {}
+                }
+            }
             try (ResultSet rs = s.executeQuery("SELECT * FROM applicants")) {
                 while (rs.next()) {
                     UUID cid = UUID.fromString(rs.getString("company_id"));

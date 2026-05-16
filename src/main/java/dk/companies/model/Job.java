@@ -2,6 +2,10 @@ package dk.companies.model;
 
 import org.bukkit.Material;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 /** A single rotating delivery job for an active license. */
 public class Job {
 
@@ -10,6 +14,8 @@ public class Job {
     private int delivered;
     private final double reward;
     private final long expiresAt;
+    /** Per-player items delivered to THIS job, used for proportional reward split on completion. */
+    private final Map<UUID, Integer> contributorAmounts = new HashMap<>();
 
     public Job(Material material, int requiredAmount, double reward, long expiresAt) {
         this.material = material;
@@ -22,9 +28,13 @@ public class Job {
     public Material getMaterial() { return material; }
     public int getRequiredAmount() { return requiredAmount; }
     public int getDelivered() { return delivered; }
-    public void addDelivered(int amount) { this.delivered += amount; }
+    public void addDelivered(UUID by, int amount) {
+        this.delivered += amount;
+        contributorAmounts.merge(by, amount, Integer::sum);
+    }
     public double getReward() { return reward; }
     public long getExpiresAt() { return expiresAt; }
+    public Map<UUID, Integer> getContributorAmounts() { return contributorAmounts; }
 
     public boolean isComplete() { return delivered >= requiredAmount; }
     public boolean isExpired() { return System.currentTimeMillis() > expiresAt; }

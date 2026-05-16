@@ -169,14 +169,23 @@ public class JobsMenu extends Menu {
 
     private void processDeliveries() {
         int totalEarned = 0;
-        double totalReward = 0;
+        double totalRewardForViewer = 0;
+        // Aggregate cross-job reward shares (in case multiple jobs complete in one click).
+        java.util.Map<java.util.UUID, Double> rewardShares = new java.util.HashMap<>();
+
         for (int s : DELIVERY_SLOTS) {
             ItemStack stack = inv.getItem(s);
             if (stack == null || stack.getType().isAir()) continue;
             LicenseManager.DeliveryResult r =
-                    plugin.licenses().tryDeliver(company, stack.getType(), stack.getAmount());
+                    plugin.licenses().tryDeliver(company, viewer.getUniqueId(), stack.getType(), stack.getAmount());
             totalEarned += r.taken;
-            if (r.completed) totalReward += r.job.getReward();
+            if (r.completed) {
+                for (var e : r.rewardShares.entrySet()) {
+                    rewardShares.merge(e.getKey(), e.getValue(), Double::sum);
+                }
+                Double mine = r.rewardShares.get(viewer.getUniqueId());
+                if (mine != null) totalRewardForViewer += mine;
+            }
             if (r.leftover > 0) {
                 ItemStack left = stack.clone();
                 left.setAmount(r.leftover);
@@ -185,20 +194,37 @@ public class JobsMenu extends Menu {
                 inv.setItem(s, null);
             }
         }
+
         if (totalEarned > 0) {
-            MessageUtil.send(viewer, "&aDelivered &f" + totalEarned + " &aitems. Job rewards earned: &6"
-                    + FormatUtil.money(totalReward));
-            company.addContribution(viewer.getUniqueId(), totalReward);
-            plugin.companies().data().saveContribution(company.getId(), viewer.getUniqueId(),
-                    company.getContributions().getOrDefault(viewer.getUniqueId(), 0.0));
+            // Always track this player's items delivered.
             company.addItemsDelivered(viewer.getUniqueId(), totalEarned);
             plugin.companies().data().saveItemsDelivered(company.getId(), viewer.getUniqueId(),
                     company.getItemsDelivered().getOrDefault(viewer.getUniqueId(), 0L));
-            // Accrue payout queue (paid out on the next payout tick).
-            if (totalReward > 0) {
-                company.addUnpaidEarnings(viewer.getUniqueId(), totalReward);
-                plugin.companies().data().saveUnpaidEarnings(company.getId(), viewer.getUniqueId(),
-                        company.getUnpaidEarnings().getOrDefault(viewer.getUniqueId(), 0.0));
+
+            // For every contributor (across all completed jobs), record their proportional share.
+            for (var e : rewardShares.entrySet()) {
+                java.util.UUID contributor = e.getKey();
+                double share = e.getValue();
+                if (share <= 0.001) continue;
+
+                company.addContribution(contributor, share);
+                plugin.companies().data().saveContribution(company.getId(), contributor,
+                        company.getContributions().getOrDefault(contributor, 0.0));
+
+                // Owners don't accrue payout — they get money via the company balance directly.
+                if (!contributor.equals(company.getOwner())) {
+                    company.addUnpaidEarnings(contributor, share);
+                    plugin.companies().data().saveUnpaidEarnings(company.getId(), contributor,
+                            company.getUnpaidEarnings().getOrDefault(contributor, 0.0));
+                }
+            }
+
+            if (rewardShares.isEmpty()) {
+                MessageUtil.send(viewer, "&aDelivered &f" + totalEarned + " &aitems &7(no job completed yet).");
+            } else {
+                MessageUtil.send(viewer, "&aDelivered &f" + totalEarned
+                        + " &aitems. Your share of completed job(s): &6"
+                        + FormatUtil.money(totalRewardForViewer));
             }
         } else {
             MessageUtil.send(viewer, "&cNothing in the delivery slots matched an active job.");
