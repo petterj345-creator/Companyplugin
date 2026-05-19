@@ -19,7 +19,7 @@ public final class FormatUtil {
         StringBuilder sb = new StringBuilder();
         if (d > 0) sb.append(d).append("d ");
         if (h > 0) sb.append(h).append("h ");
-        if (m > 0) sb.append(m).append("m ");
+        if (m > 0) sb.append(m).append("min ");
         if (sb.length() == 0) sb.append(s).append("s");
         return sb.toString().trim();
     }

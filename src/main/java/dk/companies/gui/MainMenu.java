@@ -33,9 +33,8 @@ public class MainMenu extends Menu {
         fillBorder();
         Role role = company.getRole(viewer.getUniqueId());
 
-        // Info / balance
+        // Info / balance (clean — finances live in their own buttons now)
         var lvl = plugin.companies().levels();
-        double taxPct = plugin.getConfig().getDouble("economy.earnings-tax-percent", 15.0);
         inv.setItem(slotFor(1, 4), ItemBuilder.of(Material.GOLD_INGOT)
                 .name("&6&l" + company.getName())
                 .lore("&7Level: &e" + company.getLevel() + (lvl.atMax(company) ? " &8(max)" : ""),
@@ -44,12 +43,30 @@ public class MainMenu extends Menu {
                         "&7Members: &f" + company.getMembers().size(),
                         "&7Your role: &b" + (role == null ? "—" : role.name()),
                         "&7Active licenses: &f" + company.getLicenses().size(),
-                        "&7Hiring: " + (company.isHiring() ? "&aOpen" : "&cClosed"),
+                        "&7Hiring: " + (company.isHiring() ? "&aOpen" : "&cClosed"))
+                .build());
+
+        // Earnings window button
+        double taxPct = plugin.getConfig().getDouble("economy.earnings-tax-percent", 15.0);
+        double earnings = company.getEarningsThisWindow();
+        double projectedTax = earnings * (taxPct / 100.0);
+        inv.setItem(slotFor(3, 2), ItemBuilder.of(Material.EMERALD)
+                .name("&aEarnings this window")
+                .lore("&7Earned so far: &a" + FormatUtil.money(earnings),
+                        "&7Projected tax (&c" + String.format("%.0f%%", taxPct) + "&7): &c-"
+                                + FormatUtil.money(projectedTax),
+                        "&7Net this window: &a"
+                                + FormatUtil.money(earnings - projectedTax),
                         "",
-                        "&7Earnings this window: &a" + FormatUtil.money(company.getEarningsThisWindow()),
-                        "&7Next tax (" + String.format("%.0f%%", taxPct) + " of earnings): &c"
-                                + FormatUtil.remaining(plugin.getNextTaxAt()),
-                        "&7Next payout: &a" + FormatUtil.remaining(plugin.getNextPayoutAt()),
+                        "&8Resets after each tax tick.")
+                .build());
+
+        // Tax timer button
+        inv.setItem(slotFor(3, 3), ItemBuilder.of(Material.CLOCK)
+                .name("&eNext tax tick")
+                .lore("&7Rate: &c" + String.format("%.1f%%", taxPct) + " &7of window earnings",
+                        "&7Next tax in: &c" + FormatUtil.remaining(plugin.getNextTaxAt()),
+                        "&7Next payout in: &a" + FormatUtil.remaining(plugin.getNextPayoutAt()),
                         "&7Payout rate: &e" + String.format("%.0f%%", company.getPayoutPercent()))
                 .build());
 
